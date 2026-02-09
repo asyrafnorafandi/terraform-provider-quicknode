@@ -1,6 +1,6 @@
 module github.com/asyrafnorafandi/terraform-provider-quicknode
 
-go 1.25.5
+go 1.25.7
 
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.17.0
