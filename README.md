@@ -1,4 +1,22 @@
+<div align="center">
+  <br />
+    <a href="https://astar.network/" target="_blank">
+      <img src="https://mma.prnewswire.com/media/1988572/QuickNode_Logo.jpg?p=twitter" alt="Project Banner">
+    </a>
+  <br />
+
+  <div>
+    <img alt="Terraform" src="https://img.shields.io/badge/-Terraform-844FBA?style=for-the-badge&logo=terraform&logoColor=white" />
+    <img alt="Go" src="https://img.shields.io/badge/-Go-2496ED?style=for-the-badge&logo=go&logoColor=white" />
+  </div>
+
+</div>
+
 # Terraform Provider for QuickNode
+
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues-pr/asyrafnorafandi/terraform-provider-quicknode?style=for-the-badge&logo=Github&logoColor=white)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/asyrafnorafandi/terraform-provider-quicknode/test.yml?style=for-the-badge&logo=go)
+![GitHub Release](https://img.shields.io/github/v/release/asyrafnorafandi/terraform-provider-quicknode?style=for-the-badge&logo=rocket&color=green)
 
 The QuickNode Terraform provider allows you to manage [QuickNode](https://www.quicknode.com/) blockchain infrastructure resources using Terraform.
 
