@@ -40,6 +40,8 @@ test:
 testacc:
 	TF_ACC=1 go test -v -cover -timeout 120m ./...
 
+generate:
+	cd tools; go generate ./...
 
 ##@ Build
 
