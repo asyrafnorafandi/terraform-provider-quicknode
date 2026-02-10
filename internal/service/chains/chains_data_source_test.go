@@ -1,18 +1,20 @@
 // Copyright (c) Asyraf Norafandi
 // SPDX-License-Identifier: MPL-2.0
 
-package provider
+package chains_test
 
 import (
 	"testing"
+
+	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/provider"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 func TestAccChainsDataSource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { TestAccPreCheck(t) },
-		ProtoV6ProviderFactories: TestAccProtoV6ProviderFactories,
+		PreCheck:                 func() { provider.TestAccPreCheck(t) },
+		ProtoV6ProviderFactories: provider.TestAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccChainsDataSourceConfig,
