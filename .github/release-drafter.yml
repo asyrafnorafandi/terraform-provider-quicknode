@@ -1,0 +1,90 @@
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+categories:
+  - title: "🚀 Features"
+    labels:
+      - "kind/epic"
+      - "kind/enhancement"
+      - "kind/performance"
+  - title: "🐛 Bug Fixes"
+    labels:
+      - "kind/bug"
+      - "kind/revert"
+  - title: "🧰 Maintenance"
+    labels:
+      - "kind/chore"
+      - "kind/test"
+      - "kind/documentation"
+      - "kind/refactor"
+  - title: "🔒 Security"
+    label: "kind/security"
+  - title: "🤖 CI/CD"
+    label: "kind/ci"
+
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+version-resolver:
+  major:
+    labels:
+      - "semver/major"
+      - "kind/epic"
+  minor:
+    labels:
+      - "semver/minor"
+      - "kind/enhancement"
+      - "kind/security"
+  patch:
+    labels:
+      - "semver/patch"
+      - "kind/bug"
+      - "kind/revert"
+      - "kind/chore"
+      - "kind/test"
+      - "kind/documentation"
+      - "kind/refactor"
+      - "kind/ci"
+  default: patch
+template: |
+  ## Changes
+
+  $CHANGES
+autolabeler:
+  - label: "kind/epic"
+    branch:
+      - "/epic\/.+/"
+    title:
+      - "/epic/i"
+  - label: "kind/enhancement"
+    branch:
+      - "/feature\/.+/"
+      - "/feat\/.+/"
+    title:
+      - "/feature/i"
+      - "/feat/i"
+  - label: "kind/bug"
+    branch:
+      - "/fix\/.+/"
+    title:
+      - "/fix/i"
+  - label: "kind/documentation"
+    files:
+      - "*.md"
+    branch:
+      - "/docs\/.+/"
+    title:
+      - "/docs/i"
+  - label: "kind/chore"
+    branch:
+      - "/chore\/.+/"
+    title:
+      - "/chore/i"
+  - label: "kind/ci"
+    branch:
+      - "/ci\/.+/"
+    title:
+      - "/ci/i"
+    files:
+      - ".github/workflows/**/*"
+  - label: "kind/security"
+    body:
+      - "/dependabot/i"
