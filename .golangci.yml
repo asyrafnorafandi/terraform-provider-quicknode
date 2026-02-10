@@ -21,6 +21,7 @@ linters:
     - unparam
     - unused
     - usetesting
+    - gosec
   exclusions:
     generated: lax
     presets:
