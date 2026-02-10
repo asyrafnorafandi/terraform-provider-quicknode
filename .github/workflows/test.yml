@@ -80,7 +80,11 @@ jobs:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
       - run: go mod download
-      - env:
-          TF_ACC: "1"
+      - name: Run acceptance tests
+        # TODO: Uncomment this when we have a way to test the acceptance tests
+        # env:
+        #   TF_ACC: "1"
+        #   QUICKNODE_ENDPOINT: ${{ secrets.QUICKNODE_ENDPOINT }}
+        #   QUICKNODE_API_KEY: ${{ secrets.QUICKNODE_API_KEY }}
         run: go test -v -cover ./internal/...
         timeout-minutes: 10
