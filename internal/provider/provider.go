@@ -9,6 +9,7 @@ import (
 
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/client"
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/service/chains"
+	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/service/endpoints"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -177,5 +178,7 @@ func (p *quicknodeProvider) DataSources(_ context.Context) []func() datasource.D
 
 // Resources defines the resources implemented in the provider.
 func (p *quicknodeProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		endpoints.NewEndpointResource,
+	}
 }
