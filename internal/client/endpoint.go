@@ -136,3 +136,31 @@ func (c *Client) DeleteEndpoint(ctx context.Context, endpoint models.EndpointRes
 
 	return nil
 }
+
+// ListEndpoints returns a list of endpoints from the QuickNode API.
+func (c *Client) ListEndpoints(ctx context.Context, limit int64, offset int64) (*[]models.EndpointModel, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s%s?limit=%d&offset=%d", c.HostURL, endpointsURL, limit, offset), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := c.doRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		Data  []models.EndpointModel `json:"data"`
+		Error string                 `json:"error"`
+	}
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return nil, err
+	}
+	if response.Error != "" {
+		return nil, fmt.Errorf("QuickNode API Error: %s", response.Error)
+	}
+
+	return &response.Data, nil
+}

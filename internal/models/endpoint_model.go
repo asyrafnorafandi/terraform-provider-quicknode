@@ -19,3 +19,10 @@ type EndpointResourceModel struct {
 	HTTPURL types.String `tfsdk:"http_url"`
 	WSSURL  types.String `tfsdk:"wss_url"`
 }
+
+type EndpointsDataSourceModel struct {
+	Limit  types.Int64 `tfsdk:"limit"`
+	Offset types.Int64 `tfsdk:"offset"`
+	// TagLabels types.List      `tfsdk:"tag_labels"`
+	Endpoints []EndpointResourceModel `tfsdk:"endpoints"`
+}
