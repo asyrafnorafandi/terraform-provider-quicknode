@@ -15,6 +15,16 @@ Configure the provider by providing your API key and optionally the endpoint to 
 ## Example Usage
 
 ```terraform
+terraform {
+  required_providers {
+    quicknode = {
+      source  = "asyrafnorafandi/quicknode"
+      version = "~> 0.2.0"
+    }
+  }
+}
+
+
 provider "quicknode" {
   # Set via QUICKNODE_ENDPOINT environment variable, or override here:
   # endpoint = "https://api.quicknode.com/v0"
