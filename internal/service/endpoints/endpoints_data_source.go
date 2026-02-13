@@ -60,7 +60,7 @@ func (d *endpointsDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
 							Description: "A unique identifier for the created endpoint.",
-							Required:    true,
+							Computed:    true,
 						},
 						"label": schema.StringAttribute{
 							Description: "A descriptive label for the endpoint.",

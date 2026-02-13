@@ -1,12 +1,11 @@
+
 terraform {
   required_providers {
     quicknode = {
-      source  = "asyrafnorafandi/quicknode"
-      version = "~> 0.2.0"
+      source = "registry.terraform.io/asyrafnorafandi/quicknode"
     }
   }
 }
-
 
 provider "quicknode" {
   # Set via QUICKNODE_ENDPOINT environment variable, or override here:

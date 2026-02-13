@@ -13,22 +13,6 @@ Creates a new endpoint in the QuickNode API.
 ## Example Usage
 
 ```terraform
-terraform {
-  required_providers {
-    quicknode = {
-      source = "registry.terraform.io/asyrafnorafandi/quicknode"
-    }
-  }
-}
-
-provider "quicknode" {
-  # Set via QUICKNODE_ENDPOINT environment variable, or override here:
-  # endpoint = "https://api.quicknode.com/v0"
-
-  # Set via QUICKNODE_API_KEY environment variable, or override here:
-  # api_key = "QN_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-}
-
 resource "quicknode_endpoint" "example" {
   chain   = "hedera"
   network = "hedera-testnet"

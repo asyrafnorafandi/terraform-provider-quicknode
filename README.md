@@ -44,10 +44,14 @@ provider "quicknode" {
   api_key = var.quicknode_api_key
 }
 
-data "quicknode_chains" "all" {}
+resource "quicknode_endpoint" "example" {
+  chain   = "hedera"
+  network = "hedera-testnet"
+  label   = "test-chain"
+}
 
 output "supported_chains" {
-  value = data.quicknode_chains.all.chains
+  value = quicknode_endpoint.example
 }
 ```
 
