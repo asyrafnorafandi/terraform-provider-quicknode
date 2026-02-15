@@ -128,13 +128,7 @@ func (p *quicknodeProvider) Configure(ctx context.Context, req provider.Configur
 	// errors with provider-specific guidance.
 
 	if endpoint == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("endpoint"),
-			"Missing QuickNode API Endpoint",
-			"The provider cannot create the QuickNode API client as there is a missing or empty value for the QuickNode API endpoint. "+
-				"Set the endpoint value in the configuration or use the QUICKNODE_ENDPOINT environment variable. "+
-				"If either is already set, ensure the value is not empty.",
-		)
+		endpoint = "https://api.quicknode.com/v0"
 	}
 
 	if apiKey == "" {

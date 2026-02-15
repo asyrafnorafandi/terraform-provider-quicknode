@@ -60,10 +60,18 @@ func (r *endpointResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"chain": schema.StringAttribute{
 				Description: "The blockchain the endpoint is associated with.",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"network": schema.StringAttribute{
 				Description: "The specific network of the blockchain.",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"http_url": schema.StringAttribute{
 				Description: "The HTTP URL to access the newly created endpoint.",
