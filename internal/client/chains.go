@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/models"
 )
 
 var chainsURL = "/chains"
 
 // GetChains returns the list of chains from the QuickNode API.
-func (c *Client) GetChains(ctx context.Context) ([]Chain, error) {
+func (c *Client) GetChains(ctx context.Context) ([]models.ChainModel, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s%s", c.HostURL, chainsURL), nil)
 	if err != nil {
 		return nil, err
@@ -25,7 +27,7 @@ func (c *Client) GetChains(ctx context.Context) ([]Chain, error) {
 	}
 
 	var response struct {
-		Data []Chain `json:"data"`
+		Data []models.ChainModel `json:"data"`
 	}
 
 	err = json.Unmarshal(body, &response)
