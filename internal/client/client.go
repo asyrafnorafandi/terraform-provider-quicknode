@@ -18,7 +18,7 @@ const HostURL string = "https://api.quicknode.com/v0"
 type Client struct {
 	HostURL    string
 	HTTPClient *http.Client
-	APIKey     string
+	APIKey     string //nolint:gosec // G117: not a hardcoded secret, this holds the user-provided API key
 	UserAgent  string
 }
 
@@ -53,7 +53,7 @@ func (c *Client) doRequest(ctx context.Context, req *http.Request) ([]byte, erro
 		req.Header.Set("x-api-key", c.APIKey)
 	}
 
-	res, err := c.HTTPClient.Do(req)
+	res, err := c.HTTPClient.Do(req) //nolint:gosec // G704: URL is constructed from provider config, not arbitrary user input
 	if err != nil {
 		return nil, err
 	}
