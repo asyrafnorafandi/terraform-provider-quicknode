@@ -2,7 +2,7 @@ package models
 
 import "github.com/hashicorp/terraform-plugin-framework/types"
 
-// JSON Models
+// JSON Models.
 type EndpointSecurityOptionsModel struct {
 	Tokens      bool `json:"tokens"`
 	Referrers   bool `json:"referrers"`
@@ -45,7 +45,7 @@ type EndpointModel struct {
 	Multichain bool                    `json:"multichain"`
 }
 
-// Terraform Models
+// Terraform Models.
 type SecurityOptionsResourceModel struct {
 	Tokens      types.Bool `tfsdk:"tokens"`
 	Referrers   types.Bool `tfsdk:"referrers"`
