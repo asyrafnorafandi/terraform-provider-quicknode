@@ -1,0 +1,1 @@
+terraform import quicknode_endpoint_whitelist_ip.example <endpoint_id>/<whitelist_ip_id>

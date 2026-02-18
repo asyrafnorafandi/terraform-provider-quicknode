@@ -18,9 +18,15 @@ type EndpointSecurityTokensModel struct {
 	Token string `json:"token"`
 }
 
+type EndpointSecurityWhitelistIPsModel struct {
+	ID string `json:"id"`
+	IP string `json:"ip"`
+}
+
 type EndpointSecurityModel struct {
-	Options EndpointSecurityOptionsModel  `json:"options"`
-	Tokens  []EndpointSecurityTokensModel `json:"tokens,omitempty"`
+	Options EndpointSecurityOptionsModel        `json:"options"`
+	Tokens  []EndpointSecurityTokensModel       `json:"tokens,omitempty"`
+	IPs     []EndpointSecurityWhitelistIPsModel `json:"ips,omitempty"`
 }
 
 type EndpointRateLimitsModel struct {
@@ -80,4 +86,10 @@ type EndpointsDataSourceModel struct {
 		HTTPURL types.String `tfsdk:"http_url"`
 		WSSURL  types.String `tfsdk:"wss_url"`
 	} `tfsdk:"endpoints"`
+}
+
+type EndpointWhitelistIPResourceModel struct {
+	ID         types.String `tfsdk:"id"`
+	IP         types.String `tfsdk:"ip"`
+	EndpointID types.String `tfsdk:"endpoint_id"`
 }

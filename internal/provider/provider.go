@@ -176,5 +176,6 @@ func (p *quicknodeProvider) DataSources(_ context.Context) []func() datasource.D
 func (p *quicknodeProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		endpoints.NewEndpointResource,
+		endpoints.NewEndpointWhitelistIPResource,
 	}
 }

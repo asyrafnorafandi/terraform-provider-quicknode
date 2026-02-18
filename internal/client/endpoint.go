@@ -204,3 +204,66 @@ func (c *Client) ListEndpoints(ctx context.Context, limit int64, offset int64) (
 
 	return &response.Data, nil
 }
+
+// Create a new whitelist IP for an existing endpoint.
+func (c *Client) CreateEndpointWhitelistIP(ctx context.Context, endpointID string, ip string) (*models.EndpointSecurityWhitelistIPsModel, error) {
+	jsonBody, err := json.Marshal(map[string]interface{}{
+		"ip": ip,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s%s/%s/security/ips", c.HostURL, endpointsURL, endpointID), bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := c.doRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		Data  models.EndpointSecurityWhitelistIPsModel `json:"data"`
+		Error string                                   `json:"error"`
+	}
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return nil, err
+	}
+	if response.Error != "" {
+		return nil, fmt.Errorf("QuickNode API Error: %s", response.Error)
+	}
+
+	return &response.Data, nil
+}
+
+// Delete a whitelist IP for an existing endpoint.
+func (c *Client) DeleteEndpointWhitelistIP(ctx context.Context, endpointID string, whitelistIPID string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("%s%s/%s/security/ips/%s", c.HostURL, endpointsURL, endpointID, whitelistIPID), nil)
+	if err != nil {
+		return err
+	}
+
+	body, err := c.doRequest(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	var response struct {
+		Data  bool   `json:"data"`
+		Error string `json:"error"`
+	}
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return err
+	}
+	if response.Error != "" {
+		return fmt.Errorf("QuickNode API Error: %s", response.Error)
+	}
+
+	return nil
+}

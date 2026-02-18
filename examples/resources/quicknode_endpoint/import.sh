@@ -1,0 +1,1 @@
+terraform import quicknode_endpoint.example <endpoint_id>
