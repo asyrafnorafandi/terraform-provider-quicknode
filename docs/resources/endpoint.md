@@ -67,3 +67,13 @@ Optional:
 - `jwts` (Boolean) JWT-based authentication for the endpoint. (default: false)
 - `referrers` (Boolean) Referrer-based access control for the endpoint. (default: false)
 - `tokens` (Boolean) Token-based authentication for the endpoint. (default: true)
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+terraform import quicknode_endpoint.example <endpoint_id>
+```
