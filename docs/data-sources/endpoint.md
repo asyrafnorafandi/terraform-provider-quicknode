@@ -34,5 +34,21 @@ output "endpoint" {
 - `chain` (String) The blockchain the endpoint is associated with.
 - `http_url` (String) The HTTP URL to access the newly created endpoint.
 - `label` (String) A descriptive label for the endpoint.
+- `multichain` (Boolean) Whether the endpoint is multichain.
 - `network` (String) The specific network of the blockchain.
+- `security_options` (Attributes) Security options for the endpoint. (see [below for nested schema](#nestedatt--security_options))
+- `status` (String) The status of the endpoint.
 - `wss_url` (String) The WebSocket URL to access the newly created endpoint.
+
+<a id="nestedatt--security_options"></a>
+### Nested Schema for `security_options`
+
+Read-Only:
+
+- `cors` (Boolean) Cross-Origin Resource Sharing for the endpoint.
+- `domain_masks` (Boolean) Domain mask-based access control for the endpoint.
+- `hsts` (Boolean) HTTP Strict Transport Security for the endpoint.
+- `ips` (Boolean) IP-based access control for the endpoint.
+- `jwts` (Boolean) JWT-based authentication for the endpoint.
+- `referrers` (Boolean) Referrer-based access control for the endpoint.
+- `tokens` (Boolean) Token-based authentication for the endpoint.

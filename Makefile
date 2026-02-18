@@ -63,7 +63,7 @@ $(LOCALBIN):
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
-GOLANGCI_LINT_VERSION ?= v2.4.0
+GOLANGCI_LINT_VERSION ?= v2.10.1
 
 .PHONY: setup-envtest
 setup-envtest: envtest ## Download the binaries required for ENVTEST in the local bin directory.

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -87,7 +88,123 @@ func (r *endpointResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"security_options": schema.SingleNestedAttribute{
+				Description: "Security options for the endpoint.",
+				Optional:    true,
+				Computed:    true,
+				Attributes: map[string]schema.Attribute{
+					"tokens": schema.BoolAttribute{
+						Description: "Token-based authentication for the endpoint. (default: true)",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(true),
+					},
+					"referrers": schema.BoolAttribute{
+						Description: "Referrer-based access control for the endpoint. (default: false)",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"jwts": schema.BoolAttribute{
+						Description: "JWT-based authentication for the endpoint. (default: false)",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"ips": schema.BoolAttribute{
+						Description: "IP-based access control for the endpoint. (default: false)",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"domain_masks": schema.BoolAttribute{
+						Description: "Domain mask-based access control for the endpoint. (default: false)",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"hsts": schema.BoolAttribute{
+						Description: "HTTP Strict Transport Security for the endpoint. (default: false)",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
+					"cors": schema.BoolAttribute{
+						Description: "Cross-Origin Resource Sharing for the endpoint. (default: true)",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(true),
+					},
+				},
+			},
+			"status": schema.StringAttribute{
+				Description: "The status of the endpoint.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"multichain": schema.BoolAttribute{
+				Description: "Whether the endpoint is multichain.",
+				Computed:    true,
+			},
 		},
+	}
+}
+
+// securityString converts a Terraform bool to an API "enabled"/"disabled" string.
+func securityString(val bool) string {
+	if val {
+		return "enabled"
+	}
+	return "disabled"
+}
+
+// mapSecurityOptions maps the API security options model to the Terraform resource model.
+func mapSecurityOptions(api *models.EndpointSecurityOptionsModel) *models.SecurityOptionsResourceModel {
+	if api == nil {
+		return &models.SecurityOptionsResourceModel{
+			Tokens:      types.BoolValue(true),
+			Referrers:   types.BoolValue(false),
+			JWTs:        types.BoolValue(false),
+			IPs:         types.BoolValue(false),
+			DomainMasks: types.BoolValue(false),
+			HSTS:        types.BoolValue(false),
+			CORS:        types.BoolValue(true),
+		}
+	}
+	return &models.SecurityOptionsResourceModel{
+		Tokens:      types.BoolValue(api.Tokens),
+		Referrers:   types.BoolValue(api.Referrers),
+		JWTs:        types.BoolValue(api.JWTs),
+		IPs:         types.BoolValue(api.IPs),
+		DomainMasks: types.BoolValue(api.DomainMasks),
+		HSTS:        types.BoolValue(api.HSTS),
+		CORS:        types.BoolValue(api.CORS),
+	}
+}
+
+// buildSecurityOptionsMap builds a map from the Terraform resource model for the API call.
+func buildSecurityOptionsMap(tf *models.SecurityOptionsResourceModel) map[string]string {
+	if tf == nil {
+		return map[string]string{
+			"tokens":      "enabled",
+			"referrers":   "disabled",
+			"jwts":        "disabled",
+			"ips":         "disabled",
+			"domainMasks": "disabled",
+			"hsts":        "disabled",
+			"cors":        "enabled",
+		}
+	}
+	return map[string]string{
+		"tokens":      securityString(tf.Tokens.ValueBool()),
+		"referrers":   securityString(tf.Referrers.ValueBool()),
+		"jwts":        securityString(tf.JWTs.ValueBool()),
+		"ips":         securityString(tf.IPs.ValueBool()),
+		"domainMasks": securityString(tf.DomainMasks.ValueBool()),
+		"hsts":        securityString(tf.HSTS.ValueBool()),
+		"cors":        securityString(tf.CORS.ValueBool()),
 	}
 }
 
@@ -116,6 +233,8 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 	plan.Network = types.StringValue(endpoint.Network)
 	plan.HTTPURL = types.StringValue(endpoint.HTTPURL)
 	plan.WSSURL = types.StringValue(endpoint.WSSURL)
+	plan.Status = types.StringValue(endpoint.Status)
+	plan.Multichain = types.BoolValue(endpoint.Multichain)
 
 	// Patch endpoint label if needed
 	if plan.Label.ValueString() != "" {
@@ -132,6 +251,27 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 		// Use label from API response if plan didn't have one
 		plan.Label = types.StringValue(endpoint.Label)
 	}
+
+	// Patch security options
+	err = r.client.PatchEndpointSecurity(ctx, plan.ID.ValueString(), buildSecurityOptionsMap(plan.SecurityOptions))
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error patching endpoint security options",
+			"Could not patch endpoint security options, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Read back the full state including security options
+	endpoint, err = r.client.GetEndpoint(ctx, plan.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading QuickNode Endpoint",
+			"Could not read QuickNode endpoint ID "+plan.ID.ValueString()+": "+err.Error(),
+		)
+		return
+	}
+	plan.SecurityOptions = mapSecurityOptions(&endpoint.Security.Options)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
@@ -168,6 +308,9 @@ func (r *endpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 	state.Network = types.StringValue(endpoint.Network)
 	state.HTTPURL = types.StringValue(endpoint.HTTPURL)
 	state.WSSURL = types.StringValue(endpoint.WSSURL)
+	state.SecurityOptions = mapSecurityOptions(&endpoint.Security.Options)
+	state.Status = types.StringValue(endpoint.Status)
+	state.Multichain = types.BoolValue(endpoint.Multichain)
 
 	// Set refreshed state
 	diags = resp.State.Set(ctx, &state)
@@ -197,6 +340,16 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
+	// Patch security options
+	err = r.client.PatchEndpointSecurity(ctx, plan.ID.ValueString(), buildSecurityOptionsMap(plan.SecurityOptions))
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error patching endpoint security options",
+			"Could not patch endpoint security options, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
 	// Read back the endpoint to get the full updated state
 	endpoint, err := r.client.GetEndpoint(ctx, plan.ID.ValueString())
 	if err != nil {
@@ -214,6 +367,9 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 	plan.Network = types.StringValue(endpoint.Network)
 	plan.HTTPURL = types.StringValue(endpoint.HTTPURL)
 	plan.WSSURL = types.StringValue(endpoint.WSSURL)
+	plan.SecurityOptions = mapSecurityOptions(&endpoint.Security.Options)
+	plan.Status = types.StringValue(endpoint.Status)
+	plan.Multichain = types.BoolValue(endpoint.Multichain)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)

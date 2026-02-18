@@ -29,12 +29,17 @@ func (c *Client) GetEndpoint(ctx context.Context, id string) (*models.EndpointMo
 	}
 
 	var response struct {
-		Data models.EndpointModel `json:"data"`
+		Data  models.EndpointModel `json:"data"`
+		Error string               `json:"error"`
 	}
 
 	err = json.Unmarshal(body, &response)
 	if err != nil {
 		return nil, err
+	}
+
+	if response.Error != "" {
+		return nil, fmt.Errorf("QuickNode API Error: %s", response.Error)
 	}
 
 	return &response.Data, nil
@@ -86,6 +91,41 @@ func (c *Client) PatchEndpoint(ctx context.Context, endpoint models.EndpointReso
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, fmt.Sprintf("%s%s/%s", c.HostURL, endpointsURL, endpoint.ID.ValueString()), bytes.NewReader(jsonBody))
+	if err != nil {
+		return err
+	}
+
+	body, err := c.doRequest(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	var response struct {
+		Data  bool   `json:"data"`
+		Error string `json:"error"`
+	}
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return err
+	}
+	if response.Error != "" {
+		return fmt.Errorf("QuickNode API Error: %s", response.Error)
+	}
+
+	return nil
+}
+
+// PatchEndpointSecurity updates the security options for an existing endpoint.
+func (c *Client) PatchEndpointSecurity(ctx context.Context, id string, options map[string]string) error {
+	jsonBody, err := json.Marshal(map[string]interface{}{
+		"options": options,
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, fmt.Sprintf("%s%s/%s/security_options", c.HostURL, endpointsURL, id), bytes.NewReader(jsonBody))
 	if err != nil {
 		return err
 	}
