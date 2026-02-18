@@ -114,7 +114,14 @@ func (d *endpointsDataSource) Read(ctx context.Context, req datasource.ReadReque
 	state.Limit = config.Limit
 	state.Offset = config.Offset
 	for _, endpoint := range *endpoints {
-		state.Endpoints = append(state.Endpoints, models.EndpointResourceModel{
+		state.Endpoints = append(state.Endpoints, struct {
+			ID      types.String `tfsdk:"id"`
+			Label   types.String `tfsdk:"label"`
+			Chain   types.String `tfsdk:"chain"`
+			Network types.String `tfsdk:"network"`
+			HTTPURL types.String `tfsdk:"http_url"`
+			WSSURL  types.String `tfsdk:"wss_url"`
+		}{
 			ID:      types.StringValue(endpoint.ID),
 			Label:   types.StringValue(endpoint.Label),
 			Chain:   types.StringValue(endpoint.Chain),

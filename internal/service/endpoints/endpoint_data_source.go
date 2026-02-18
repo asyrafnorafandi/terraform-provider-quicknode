@@ -65,6 +65,48 @@ func (d *endpointDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 				Description: "The WebSocket URL to access the newly created endpoint.",
 				Computed:    true,
 			},
+			"security_options": schema.SingleNestedAttribute{
+				Description: "Security options for the endpoint.",
+				Computed:    true,
+				Attributes: map[string]schema.Attribute{
+					"tokens": schema.BoolAttribute{
+						Description: "Token-based authentication for the endpoint.",
+						Computed:    true,
+					},
+					"referrers": schema.BoolAttribute{
+						Description: "Referrer-based access control for the endpoint.",
+						Computed:    true,
+					},
+					"jwts": schema.BoolAttribute{
+						Description: "JWT-based authentication for the endpoint.",
+						Computed:    true,
+					},
+					"ips": schema.BoolAttribute{
+						Description: "IP-based access control for the endpoint.",
+						Computed:    true,
+					},
+					"domain_masks": schema.BoolAttribute{
+						Description: "Domain mask-based access control for the endpoint.",
+						Computed:    true,
+					},
+					"hsts": schema.BoolAttribute{
+						Description: "HTTP Strict Transport Security for the endpoint.",
+						Computed:    true,
+					},
+					"cors": schema.BoolAttribute{
+						Description: "Cross-Origin Resource Sharing for the endpoint.",
+						Computed:    true,
+					},
+				},
+			},
+			"status": schema.StringAttribute{
+				Description: "The status of the endpoint.",
+				Computed:    true,
+			},
+			"multichain": schema.BoolAttribute{
+				Description: "Whether the endpoint is multichain.",
+				Computed:    true,
+			},
 		},
 	}
 }
@@ -98,6 +140,9 @@ func (d *endpointDataSource) Read(ctx context.Context, req datasource.ReadReques
 	state.Network = types.StringValue(endpoint.Network)
 	state.HTTPURL = types.StringValue(endpoint.HTTPURL)
 	state.WSSURL = types.StringValue(endpoint.WSSURL)
+	state.SecurityOptions = mapSecurityOptions(&endpoint.Security.Options)
+	state.Status = types.StringValue(endpoint.Status)
+	state.Multichain = types.BoolValue(endpoint.Multichain)
 
 	// // Set refreshed state
 	diags = resp.State.Set(ctx, &state)

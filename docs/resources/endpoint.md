@@ -14,9 +14,19 @@ Creates a new endpoint in the QuickNode API.
 
 ```terraform
 resource "quicknode_endpoint" "example" {
-  chain   = "hedera"
-  network = "hedera-testnet"
+  chain   = "optimism"
+  network = "optimism-sepolia"
   label   = "test-chain"
+
+  security_options = {
+    tokens       = true
+    referrers    = false
+    jwts         = false
+    ips          = false
+    domain_masks = false
+    hsts         = false
+    cors         = true
+  }
 }
 
 output "endpoint" {
@@ -35,9 +45,25 @@ output "endpoint" {
 ### Optional
 
 - `label` (String) A descriptive label for the endpoint.
+- `security_options` (Attributes) Security options for the endpoint. (see [below for nested schema](#nestedatt--security_options))
 
 ### Read-Only
 
 - `http_url` (String) The HTTP URL to access the newly created endpoint.
 - `id` (String) A unique identifier for the created endpoint.
+- `multichain` (Boolean) Whether the endpoint is multichain.
+- `status` (String) The status of the endpoint.
 - `wss_url` (String) The WebSocket URL to access the newly created endpoint.
+
+<a id="nestedatt--security_options"></a>
+### Nested Schema for `security_options`
+
+Optional:
+
+- `cors` (Boolean) Cross-Origin Resource Sharing for the endpoint. (default: true)
+- `domain_masks` (Boolean) Domain mask-based access control for the endpoint. (default: false)
+- `hsts` (Boolean) HTTP Strict Transport Security for the endpoint. (default: false)
+- `ips` (Boolean) IP-based access control for the endpoint. (default: false)
+- `jwts` (Boolean) JWT-based authentication for the endpoint. (default: false)
+- `referrers` (Boolean) Referrer-based access control for the endpoint. (default: false)
+- `tokens` (Boolean) Token-based authentication for the endpoint. (default: true)
