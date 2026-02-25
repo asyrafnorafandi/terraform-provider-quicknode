@@ -6,13 +6,13 @@ package endpoints
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/client"
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/models"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -115,15 +115,15 @@ func (d *endpointDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 func (d *endpointDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var config models.EndpointResourceModel
 
-	// Read the user's config (the values they set in the .tf file)
+	// Read the user's config (the values they set in the .tf file).
 	diags := req.Config.Get(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Get refreshed endpoint value from QuickNode
-	endpoint, err := d.client.GetEndpoint(ctx, config.ID.ValueString())
+	// Get refreshed endpoint value from QuickNode.
+	showResp, err := d.client.API.ShowEndpointWithResponse(ctx, config.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading QuickNode Endpoint",
@@ -131,20 +131,18 @@ func (d *endpointDataSource) Read(ctx context.Context, req datasource.ReadReques
 		)
 		return
 	}
+	if showResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error Reading QuickNode Endpoint",
+			fmt.Sprintf("API returned status %d: %s", showResp.StatusCode(), string(showResp.Body)),
+		)
+		return
+	}
 
-	// Overwrite endpoint with refreshed state
-	var state models.EndpointResourceModel
-	state.ID = types.StringValue(endpoint.ID)
-	state.Label = types.StringValue(endpoint.Label)
-	state.Chain = types.StringValue(endpoint.Chain)
-	state.Network = types.StringValue(endpoint.Network)
-	state.HTTPURL = types.StringValue(endpoint.HTTPURL)
-	state.WSSURL = types.StringValue(endpoint.WSSURL)
-	state.SecurityOptions = mapSecurityOptions(&endpoint.Security.Options)
-	state.Status = types.StringValue(endpoint.Status)
-	state.Multichain = types.BoolValue(endpoint.Multichain)
+	endpoint := showResp.JSON200.Data
+	state := mapSingleEndpointToState(endpoint, showResp.Body)
 
-	// // Set refreshed state
+	// Set refreshed state.
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

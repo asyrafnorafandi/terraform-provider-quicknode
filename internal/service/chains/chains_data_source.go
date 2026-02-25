@@ -6,6 +6,7 @@ package chains
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/client"
 
@@ -95,7 +96,7 @@ func (d *chainsDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 
 	tflog.Debug(ctx, "Reading QuickNode chains")
 
-	chains, err := d.client.GetChains(ctx)
+	chainsResp, err := d.client.API.ChainsWithResponse(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read QuickNode Chains",
@@ -104,20 +105,32 @@ func (d *chainsDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
+	if chainsResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Unable to Read QuickNode Chains",
+			fmt.Sprintf("API returned status %d: %s", chainsResp.StatusCode(), string(chainsResp.Body)),
+		)
+		return
+	}
+
+	chains := chainsResp.JSON200.Data
+
 	tflog.Debug(ctx, "Received QuickNode chains", map[string]interface{}{
 		"count": len(chains),
 	})
 
 	for _, chain := range chains {
 		chainState := chainsModel{
-			Slug: types.StringValue(chain.Slug),
+			Slug: types.StringPointerValue(chain.Slug),
 		}
 
-		for _, network := range chain.Networks {
-			chainState.Networks = append(chainState.Networks, networksModel{
-				Slug: types.StringValue(network.Slug),
-				Name: types.StringValue(network.Name),
-			})
+		if chain.Networks != nil {
+			for _, network := range *chain.Networks {
+				chainState.Networks = append(chainState.Networks, networksModel{
+					Slug: types.StringPointerValue(network.Slug),
+					Name: types.StringPointerValue(network.Name),
+				})
+			}
 		}
 
 		state.Chains = append(state.Chains, chainState)

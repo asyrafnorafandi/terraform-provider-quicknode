@@ -128,7 +128,7 @@ func (p *quicknodeProvider) Configure(ctx context.Context, req provider.Configur
 	// errors with provider-specific guidance.
 
 	if endpoint == "" {
-		endpoint = "https://api.quicknode.com/v0"
+		endpoint = "https://api.quicknode.com"
 	}
 
 	if apiKey == "" {

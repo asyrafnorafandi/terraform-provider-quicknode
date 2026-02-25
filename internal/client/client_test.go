@@ -16,16 +16,8 @@ func TestNewClient_Defaults(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if c.HostURL != HostURL {
-		t.Errorf("expected HostURL %q, got %q", HostURL, c.HostURL)
-	}
-
-	if c.APIKey != "" {
-		t.Errorf("expected empty APIKey, got %q", c.APIKey)
-	}
-
-	if c.UserAgent != "terraform-provider-quicknode" {
-		t.Errorf("expected UserAgent %q, got %q", "terraform-provider-quicknode", c.UserAgent)
+	if c.API == nil {
+		t.Fatal("expected non-nil API client")
 	}
 }
 
@@ -38,37 +30,29 @@ func TestNewClient_WithEndpointAndAPIKey(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if c.HostURL != endpoint {
-		t.Errorf("expected HostURL %q, got %q", endpoint, c.HostURL)
-	}
-
-	if c.APIKey != apiKey {
-		t.Errorf("expected APIKey %q, got %q", apiKey, c.APIKey)
+	if c.API == nil {
+		t.Fatal("expected non-nil API client")
 	}
 }
 
-func TestDoRequest_SetsHeaders(t *testing.T) {
+func TestNewClient_SetsHeaders(t *testing.T) {
 	var receivedHeaders http.Header
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedHeaders = r.Header
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{"data":[]}`))
 	}))
 	defer server.Close()
 
 	apiKey := "test-api-key"
-	c, _ := NewClient(&server.URL, &apiKey)
-
-	req, _ := http.NewRequest(http.MethodGet, server.URL, nil)
-	_, err := c.doRequest(context.Background(), req)
+	c, err := NewClient(&server.URL, &apiKey)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if got := receivedHeaders.Get("Content-Type"); got != "application/json" {
-		t.Errorf("expected Content-Type %q, got %q", "application/json", got)
-	}
+	// Make a real request through the generated client to verify headers.
+	_, _ = c.API.ChainsWithResponse(context.Background())
 
 	if got := receivedHeaders.Get("Accept"); got != "application/json" {
 		t.Errorf("expected Accept %q, got %q", "application/json", got)
@@ -83,81 +67,24 @@ func TestDoRequest_SetsHeaders(t *testing.T) {
 	}
 }
 
-func TestDoRequest_NoAPIKey_OmitsHeader(t *testing.T) {
+func TestNewClient_NoAPIKey_OmitsHeader(t *testing.T) {
 	var receivedHeaders http.Header
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedHeaders = r.Header
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{"data":[]}`))
 	}))
 	defer server.Close()
 
-	c, _ := NewClient(&server.URL, nil)
-
-	req, _ := http.NewRequest(http.MethodGet, server.URL, nil)
-	_, err := c.doRequest(context.Background(), req)
+	c, err := NewClient(&server.URL, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
+	_, _ = c.API.ChainsWithResponse(context.Background())
+
 	if got := receivedHeaders.Get("x-api-key"); got != "" {
 		t.Errorf("expected no x-api-key header, got %q", got)
-	}
-}
-
-func TestDoRequest_Non200_ReturnsError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
-	}))
-	defer server.Close()
-
-	c, _ := NewClient(&server.URL, nil)
-
-	req, _ := http.NewRequest(http.MethodGet, server.URL, nil)
-	_, err := c.doRequest(context.Background(), req)
-	if err == nil {
-		t.Fatal("expected error for non-200 response, got nil")
-	}
-
-	expected := `status: 401, body: {"error":"unauthorized"}`
-	if err.Error() != expected {
-		t.Errorf("expected error %q, got %q", expected, err.Error())
-	}
-}
-
-func TestDoRequest_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`internal server error`))
-	}))
-	defer server.Close()
-
-	c, _ := NewClient(&server.URL, nil)
-
-	req, _ := http.NewRequest(http.MethodGet, server.URL, nil)
-	_, err := c.doRequest(context.Background(), req)
-	if err == nil {
-		t.Fatal("expected error for 500 response, got nil")
-	}
-}
-
-func TestDoRequest_ContextCancelled(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{}`))
-	}))
-	defer server.Close()
-
-	c, _ := NewClient(&server.URL, nil)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	req, _ := http.NewRequest(http.MethodGet, server.URL, nil)
-	_, err := c.doRequest(ctx, req)
-	if err == nil {
-		t.Fatal("expected error for cancelled context, got nil")
 	}
 }

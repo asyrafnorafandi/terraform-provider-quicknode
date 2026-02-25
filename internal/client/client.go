@@ -5,68 +5,46 @@ package client
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"net/http"
 	"time"
+
+	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/api"
 )
 
 // HostURL - Default QuickNode URL.
-const HostURL string = "https://api.quicknode.com/v0"
+const HostURL string = "https://api.quicknode.com"
 
-// Client holds the configuration for the QuickNode API client.
+// Client wraps the generated QuickNode API client.
 type Client struct {
-	HostURL    string
-	HTTPClient *http.Client
-	APIKey     string //nolint:gosec // G117: not a hardcoded secret, this holds the user-provided API key
-	UserAgent  string
+	API *api.ClientWithResponses
 }
 
 // NewClient creates a new QuickNode API client.
 func NewClient(endpoint, apiKey *string) (*Client, error) {
-	c := Client{
-		HTTPClient: &http.Client{Timeout: 10 * time.Second},
-		HostURL:    HostURL,
-		UserAgent:  "terraform-provider-quicknode",
-	}
-
+	host := HostURL
 	if endpoint != nil {
-		c.HostURL = *endpoint
+		host = *endpoint
 	}
 
-	if apiKey == nil {
-		return &c, nil
+	key := ""
+	if apiKey != nil {
+		key = *apiKey
 	}
 
-	c.APIKey = *apiKey
-
-	return &c, nil
-}
-
-func (c *Client) doRequest(ctx context.Context, req *http.Request) ([]byte, error) {
-	req = req.WithContext(ctx)
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", c.UserAgent)
-	if c.APIKey != "" {
-		req.Header.Set("x-api-key", c.APIKey)
-	}
-
-	res, err := c.HTTPClient.Do(req) //nolint:gosec // G704: URL is constructed from provider config, not arbitrary user input
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
+	c, err := api.NewClientWithResponses(host,
+		api.WithHTTPClient(&http.Client{Timeout: 10 * time.Second}),
+		api.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+			req.Header.Set("User-Agent", "terraform-provider-quicknode")
+			req.Header.Set("Accept", "application/json")
+			if key != "" {
+				req.Header.Set("x-api-key", key)
+			}
+			return nil
+		}),
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status: %d, body: %s", res.StatusCode, body)
-	}
-
-	return body, nil
+	return &Client{API: c}, nil
 }
