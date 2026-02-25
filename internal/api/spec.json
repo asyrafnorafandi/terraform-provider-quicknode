@@ -1652,6 +1652,64 @@
       }
     },
     "/v0/endpoints/{id}/tags": {
+      "get": {
+        "summary": "Retrieves endpoint tags",
+        "tags": [
+          "Endpoint Tags"
+        ],
+        "description": "List tags for a specific endpoint",
+        "operationId": "listEndpointTags",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id":          { "type": "integer" },
+                              "tag_id":      { "type": "integer" },
+                              "account_id":  { "type": "integer" },
+                              "label":       { "type": "string" },
+                              "created_at":  { "type": "string" },
+                              "updated_at":  { "type": "string" },
+                              "endpoint_id": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "error": { "type": "string", "nullable": true }
+                  },
+                  "required": ["data", "error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Endpoint not found"
+          }
+        }
+      },
       "post": {
         "summary": "Creates endpoint tag",
         "tags": [

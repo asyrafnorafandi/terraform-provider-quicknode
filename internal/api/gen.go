@@ -838,6 +838,9 @@ type ClientInterface interface {
 
 	UpdateEndpointStatus(ctx context.Context, id string, body UpdateEndpointStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListEndpointTags request
+	ListEndpointTags(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateTagWithBody request with any body
 	CreateTagWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1487,6 +1490,18 @@ func (c *Client) UpdateEndpointStatusWithBody(ctx context.Context, id string, co
 
 func (c *Client) UpdateEndpointStatus(ctx context.Context, id string, body UpdateEndpointStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateEndpointStatusRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListEndpointTags(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEndpointTagsRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -3379,6 +3394,40 @@ func NewUpdateEndpointStatusRequestWithBody(server string, id string, contentTyp
 	return req, nil
 }
 
+// NewListEndpointTagsRequest generates requests for ListEndpointTags
+func NewListEndpointTagsRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v0/endpoints/%s/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCreateTagRequest calls the generic CreateTag builder with application/json body
 func NewCreateTagRequest(server string, id string, body CreateTagJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -4337,6 +4386,9 @@ type ClientWithResponsesInterface interface {
 
 	UpdateEndpointStatusWithResponse(ctx context.Context, id string, body UpdateEndpointStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateEndpointStatusResponse, error)
 
+	// ListEndpointTagsWithResponse request
+	ListEndpointTagsWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*ListEndpointTagsResponse, error)
+
 	// CreateTagWithBodyWithResponse request with any body
 	CreateTagWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTagResponse, error)
 
@@ -5214,6 +5266,41 @@ func (r UpdateEndpointStatusResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateEndpointStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListEndpointTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data *struct {
+			Tags *[]struct {
+				AccountId  *int    `json:"account_id,omitempty"`
+				CreatedAt  *string `json:"created_at,omitempty"`
+				EndpointId *int    `json:"endpoint_id,omitempty"`
+				Id         *int    `json:"id,omitempty"`
+				Label      *string `json:"label,omitempty"`
+				TagId      *int    `json:"tag_id,omitempty"`
+				UpdatedAt  *string `json:"updated_at,omitempty"`
+			} `json:"tags,omitempty"`
+		} `json:"data"`
+		Error *string `json:"error"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEndpointTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEndpointTagsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6177,6 +6264,15 @@ func (c *ClientWithResponses) UpdateEndpointStatusWithResponse(ctx context.Conte
 	return ParseUpdateEndpointStatusResponse(rsp)
 }
 
+// ListEndpointTagsWithResponse request returning *ListEndpointTagsResponse
+func (c *ClientWithResponses) ListEndpointTagsWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*ListEndpointTagsResponse, error) {
+	rsp, err := c.ListEndpointTags(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEndpointTagsResponse(rsp)
+}
+
 // CreateTagWithBodyWithResponse request with arbitrary body returning *CreateTagResponse
 func (c *ClientWithResponses) CreateTagWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTagResponse, error) {
 	rsp, err := c.CreateTagWithBody(ctx, id, contentType, body, reqEditors...)
@@ -7131,6 +7227,45 @@ func ParseUpdateEndpointStatusResponse(rsp *http.Response) (*UpdateEndpointStatu
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListEndpointTagsResponse parses an HTTP response from a ListEndpointTagsWithResponse call
+func ParseListEndpointTagsResponse(rsp *http.Response) (*ListEndpointTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEndpointTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data *struct {
+				Tags *[]struct {
+					AccountId  *int    `json:"account_id,omitempty"`
+					CreatedAt  *string `json:"created_at,omitempty"`
+					EndpointId *int    `json:"endpoint_id,omitempty"`
+					Id         *int    `json:"id,omitempty"`
+					Label      *string `json:"label,omitempty"`
+					TagId      *int    `json:"tag_id,omitempty"`
+					UpdatedAt  *string `json:"updated_at,omitempty"`
+				} `json:"tags,omitempty"`
+			} `json:"data"`
+			Error *string `json:"error"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 

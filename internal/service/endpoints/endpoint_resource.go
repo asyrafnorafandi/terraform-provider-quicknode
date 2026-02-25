@@ -13,10 +13,12 @@ import (
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/client"
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/models"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -151,6 +153,15 @@ func (r *endpointResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Description: "Whether the endpoint is multichain.",
 				Computed:    true,
 			},
+			"tags": schema.ListAttribute{
+				Description: "Labels (tags) associated with the endpoint.",
+				ElementType: types.StringType,
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
+			},
 		},
 	}
 }
@@ -210,6 +221,90 @@ func defaultSecurityOptions() *models.SecurityOptionsResourceModel {
 		HSTS:        types.BoolValue(false),
 		CORS:        types.BoolValue(true),
 	}
+}
+
+// parseTags converts the endpoint's embedded tag list into a Terraform list of strings.
+func parseTags(apiTags *[]struct {
+	Label *string `json:"label,omitempty"`
+	TagId *int    `json:"tag_id,omitempty"`
+}) types.List {
+	if apiTags == nil || len(*apiTags) == 0 {
+		return types.ListValueMust(types.StringType, []attr.Value{})
+	}
+	elems := make([]attr.Value, 0, len(*apiTags))
+	for _, t := range *apiTags {
+		label := ""
+		if t.Label != nil {
+			label = *t.Label
+		}
+		elems = append(elems, types.StringValue(label))
+	}
+	list, _ := types.ListValue(types.StringType, elems)
+	return list
+}
+
+// reconcileTags diffs the desired tag labels against the API's current tags,
+// deleting removed ones and creating new ones.
+func reconcileTags(ctx context.Context, c *client.Client, endpointID string, planTags types.List) error {
+	listResp, err := c.API.ListEndpointTagsWithResponse(ctx, endpointID)
+	if err != nil {
+		return fmt.Errorf("listing endpoint tags: %w", err)
+	}
+	if listResp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("listing endpoint tags: status %d: %s", listResp.StatusCode(), string(listResp.Body))
+	}
+
+	// Build desired label set from plan.
+	desiredLabels := map[string]bool{}
+	if !planTags.IsNull() && !planTags.IsUnknown() {
+		var labels []string
+		_ = planTags.ElementsAs(ctx, &labels, false)
+		for _, l := range labels {
+			desiredLabels[l] = true
+		}
+	}
+
+	// Delete tags not in desired set.
+	if listResp.JSON200 != nil && listResp.JSON200.Data != nil && listResp.JSON200.Data.Tags != nil {
+		for _, t := range *listResp.JSON200.Data.Tags {
+			label := ""
+			if t.Label != nil {
+				label = *t.Label
+			}
+			if !desiredLabels[label] && t.TagId != nil {
+				delResp, delErr := c.API.DeleteTagWithResponse(ctx, endpointID, fmt.Sprintf("%d", *t.TagId))
+				if delErr != nil {
+					return fmt.Errorf("deleting tag %d: %w", *t.TagId, delErr)
+				}
+				if delResp.StatusCode() != http.StatusOK {
+					return fmt.Errorf("deleting tag %d: status %d", *t.TagId, delResp.StatusCode())
+				}
+			}
+		}
+	}
+
+	// Create tags not yet present.
+	currentLabels := map[string]bool{}
+	if listResp.JSON200 != nil && listResp.JSON200.Data != nil && listResp.JSON200.Data.Tags != nil {
+		for _, t := range *listResp.JSON200.Data.Tags {
+			if t.Label != nil {
+				currentLabels[*t.Label] = true
+			}
+		}
+	}
+	for label := range desiredLabels {
+		if !currentLabels[label] {
+			l := label
+			createResp, createErr := c.API.CreateTagWithResponse(ctx, endpointID, api.CreateTagJSONRequestBody{Label: &l})
+			if createErr != nil {
+				return fmt.Errorf("creating tag %q: %w", label, createErr)
+			}
+			if createResp.StatusCode() != http.StatusOK {
+				return fmt.Errorf("creating tag %q: status %d", label, createResp.StatusCode())
+			}
+		}
+	}
+	return nil
 }
 
 // buildSecurityOptionsBody builds the request body for updating security options.
@@ -304,6 +399,7 @@ func mapSingleEndpointToState(endpoint *api.SingleEndpoint, body []byte) models.
 		SecurityOptions: parseSecurityOptions(body),
 		Status:          types.StringValue(status),
 		Multichain:      types.BoolValue(multichain),
+		Tags:            parseTags(endpoint.Tags),
 	}
 	return state
 }
@@ -414,6 +510,32 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 	}
 	plan.SecurityOptions = parseSecurityOptions(showResp.Body)
 
+	// Reconcile tags if specified.
+	if !plan.Tags.IsNull() && !plan.Tags.IsUnknown() {
+		if tagErr := reconcileTags(ctx, r.client, plan.ID.ValueString(), plan.Tags); tagErr != nil {
+			resp.Diagnostics.AddError("Error creating endpoint tags", tagErr.Error())
+			return
+		}
+		// Re-read to get final state including tags.
+		showResp, err = r.client.API.ShowEndpointWithResponse(ctx, plan.ID.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Reading QuickNode Endpoint",
+				"Could not read QuickNode endpoint ID "+plan.ID.ValueString()+": "+err.Error(),
+			)
+			return
+		}
+		if showResp.StatusCode() != http.StatusOK {
+			resp.Diagnostics.AddError(
+				"Error Reading QuickNode Endpoint",
+				fmt.Sprintf("API returned status %d: %s", showResp.StatusCode(), string(showResp.Body)),
+			)
+			return
+		}
+	}
+
+	plan = mapSingleEndpointToState(showResp.JSON200.Data, showResp.Body)
+
 	// Set state to fully populated data.
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -508,6 +630,12 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
+	// Reconcile tags.
+	if tagErr := reconcileTags(ctx, r.client, plan.ID.ValueString(), plan.Tags); tagErr != nil {
+		resp.Diagnostics.AddError("Error updating endpoint tags", tagErr.Error())
+		return
+	}
+
 	// Read back the endpoint to get the full updated state.
 	showResp, err := r.client.API.ShowEndpointWithResponse(ctx, plan.ID.ValueString())
 	if err != nil {
@@ -525,8 +653,7 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	endpoint := showResp.JSON200.Data
-	plan = mapSingleEndpointToState(endpoint, showResp.Body)
+	plan = mapSingleEndpointToState(showResp.JSON200.Data, showResp.Body)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
