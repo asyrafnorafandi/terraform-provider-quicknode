@@ -37,9 +37,6 @@ terraform {
 }
 
 provider "quicknode" {
-  # Can also be set with the QUICKNODE_ENDPOINT environment variable
-  endpoint = "https://api.quicknode.com/v0"
-
   # Can also be set with the QUICKNODE_API_KEY environment variable
   api_key = var.quicknode_api_key
 }
@@ -61,21 +58,31 @@ The provider requires a QuickNode API key. You can configure it in two ways:
 
 1. **Environment variables** (recommended):
    ```bash
-   export QUICKNODE_ENDPOINT="https://api.quicknode.com/v0"
    export QUICKNODE_API_KEY="your-api-key"
    ```
 
 2. **Provider configuration** (not recommended for production):
    ```hcl
    provider "quicknode" {
-     endpoint = "https://api.quicknode.com/v0"
-     api_key  = "your-api-key"
+     api_key = "your-api-key"
    }
    ```
+
+You can optionally override the API base URL (defaults to `https://api.quicknode.com`):
+```bash
+export QUICKNODE_ENDPOINT="https://api.quicknode.com"
+```
+
+## Resources
+
+- `quicknode_endpoint` - Creates and manages a QuickNode RPC endpoint.
+- `quicknode_endpoint_whitelist_ip` - Manages IP whitelist entries for an endpoint.
 
 ## Data Sources
 
 - `quicknode_chains` - Fetches the list of supported blockchain chains and their networks.
+- `quicknode_endpoint` - Returns info for a specific endpoint.
+- `quicknode_endpoints` - Lists info for all available endpoints.
 
 ## Developing the Provider
 
@@ -94,9 +101,18 @@ make test
 
 Acceptance tests (creates real resources):
 ```bash
-export QUICKNODE_ENDPOINT="https://api.quicknode.com/v0"
 export QUICKNODE_API_KEY="your-api-key"
 make testacc
+```
+
+### Code Generation
+
+The API client is generated from the [QuickNode OpenAPI spec](https://www.quicknode.com/api-docs/v0/swagger.json) using [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen). Generated code lives in `internal/api/`.
+
+To regenerate after updating the spec:
+```bash
+cd internal/api
+go generate ./...
 ```
 
 ### Generating Documentation

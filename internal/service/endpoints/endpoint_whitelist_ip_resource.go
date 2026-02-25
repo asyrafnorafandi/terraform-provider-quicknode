@@ -5,9 +5,12 @@ package endpoints
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
+	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/api"
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/client"
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/models"
 
@@ -75,7 +78,7 @@ func (r *endpointWhitelistIPResource) Schema(_ context.Context, _ resource.Schem
 
 // Create a new resource.
 func (r *endpointWhitelistIPResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	// Retrieve values from plan
+	// Retrieve values from plan.
 	var plan models.EndpointWhitelistIPResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -83,8 +86,11 @@ func (r *endpointWhitelistIPResource) Create(ctx context.Context, req resource.C
 		return
 	}
 
-	// Create new order
-	whitelistIP, err := r.client.CreateEndpointWhitelistIP(ctx, plan.EndpointID.ValueString(), plan.IP.ValueString())
+	ip := plan.IP.ValueString()
+	// Create new whitelist IP.
+	createResp, err := r.client.API.CreateIpWithResponse(ctx, plan.EndpointID.ValueString(), api.CreateIpJSONRequestBody{
+		Ip: &ip,
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating endpoint whitelist IP",
@@ -92,10 +98,32 @@ func (r *endpointWhitelistIPResource) Create(ctx context.Context, req resource.C
 		)
 		return
 	}
-	// Map response body to schema and populate Computed attribute values
-	plan.ID = types.StringValue(whitelistIP.ID)
+	if createResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error creating endpoint whitelist IP",
+			fmt.Sprintf("API returned status %d: %s", createResp.StatusCode(), string(createResp.Body)),
+		)
+		return
+	}
 
-	// Set state to fully populated data
+	// The CreateIp response doesn't have a typed JSON200 in the spec, so we parse the raw body.
+	var ipResp struct {
+		Data struct {
+			ID string `json:"id"`
+			IP string `json:"ip"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(createResp.Body, &ipResp); err != nil {
+		resp.Diagnostics.AddError(
+			"Error parsing whitelist IP response",
+			"Could not parse response: "+err.Error(),
+		)
+		return
+	}
+
+	plan.ID = types.StringValue(ipResp.Data.ID)
+
+	// Set state to fully populated data.
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -105,7 +133,7 @@ func (r *endpointWhitelistIPResource) Create(ctx context.Context, req resource.C
 
 // Read refreshes the Terraform state with the latest data.
 func (r *endpointWhitelistIPResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	// Get current state
+	// Get current state.
 	var state models.EndpointWhitelistIPResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -113,8 +141,8 @@ func (r *endpointWhitelistIPResource) Read(ctx context.Context, req resource.Rea
 		return
 	}
 
-	// Get refreshed endpoint value from QuickNode
-	endpoint, err := r.client.GetEndpoint(ctx, state.EndpointID.ValueString())
+	// Get refreshed endpoint value from QuickNode.
+	showResp, err := r.client.API.ShowEndpointWithResponse(ctx, state.EndpointID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading QuickNode Endpoint",
@@ -122,16 +150,29 @@ func (r *endpointWhitelistIPResource) Read(ctx context.Context, req resource.Rea
 		)
 		return
 	}
+	if showResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error Reading QuickNode Endpoint",
+			fmt.Sprintf("API returned status %d: %s", showResp.StatusCode(), string(showResp.Body)),
+		)
+		return
+	}
 
-	// Find specific IP in IP array
-	for _, ip := range endpoint.Security.IPs {
-		if ip.ID == state.ID.ValueString() {
-			state.IP = types.StringValue(ip.IP)
-			break
+	endpoint := showResp.JSON200.Data
+
+	// Find specific IP in IP array.
+	if endpoint.Security.Ips != nil {
+		for _, ip := range *endpoint.Security.Ips {
+			if ip.Id != nil && *ip.Id == state.ID.ValueString() {
+				if ip.Ip != nil {
+					state.IP = types.StringValue(*ip.Ip)
+				}
+				break
+			}
 		}
 	}
 
-	// Set refreshed state
+	// Set refreshed state.
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -149,7 +190,7 @@ func (r *endpointWhitelistIPResource) Update(ctx context.Context, req resource.U
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (r *endpointWhitelistIPResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	// Retrieve values from state
+	// Retrieve values from state.
 	var state models.EndpointWhitelistIPResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -157,12 +198,19 @@ func (r *endpointWhitelistIPResource) Delete(ctx context.Context, req resource.D
 		return
 	}
 
-	// Delete existing order
-	err := r.client.DeleteEndpointWhitelistIP(ctx, state.EndpointID.ValueString(), state.ID.ValueString())
+	// Delete existing whitelist IP.
+	deleteResp, err := r.client.API.DeleteIpWithResponse(ctx, state.EndpointID.ValueString(), state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting QuickNode Endpoint Whitelist IP",
 			"Could not delete endpoint whitelist IP, unexpected error: "+err.Error(),
+		)
+		return
+	}
+	if deleteResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error Deleting QuickNode Endpoint Whitelist IP",
+			fmt.Sprintf("API returned status %d: %s", deleteResp.StatusCode(), string(deleteResp.Body)),
 		)
 		return
 	}

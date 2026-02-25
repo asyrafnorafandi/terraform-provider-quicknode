@@ -5,8 +5,11 @@ package endpoints
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
+	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/api"
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/client"
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/models"
 
@@ -153,64 +156,161 @@ func (r *endpointResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 }
 
 // securityString converts a Terraform bool to an API "enabled"/"disabled" string.
-func securityString(val bool) string {
+func securityString(val bool) api.UpdateSecurityOptionsJSONBodyOptionsTokens {
 	if val {
 		return "enabled"
 	}
 	return "disabled"
 }
 
-// mapSecurityOptions maps the API security options model to the Terraform resource model.
-func mapSecurityOptions(api *models.EndpointSecurityOptionsModel) *models.SecurityOptionsResourceModel {
-	if api == nil {
-		return &models.SecurityOptionsResourceModel{
-			Tokens:      types.BoolValue(true),
-			Referrers:   types.BoolValue(false),
-			JWTs:        types.BoolValue(false),
-			IPs:         types.BoolValue(false),
-			DomainMasks: types.BoolValue(false),
-			HSTS:        types.BoolValue(false),
-			CORS:        types.BoolValue(true),
-		}
+// securityOptionsResponse is used to parse security options from the raw response body,
+// because the OpenAPI spec doesn't include hsts/cors in the response schema.
+type securityOptionsResponse struct {
+	Options struct {
+		Tokens      *bool `json:"tokens"`
+		Referrers   *bool `json:"referrers"`
+		JWTs        *bool `json:"jwts"`
+		IPs         *bool `json:"ips"`
+		DomainMasks *bool `json:"domainMasks"`
+		HSTS        *bool `json:"hsts"`
+		CORS        *bool `json:"cors"`
+	} `json:"options"`
+}
+
+// parseSecurityOptions extracts security options from the raw JSON body, including
+// hsts and cors which are not defined in the OpenAPI spec response schema.
+func parseSecurityOptions(body []byte) *models.SecurityOptionsResourceModel {
+	var envelope struct {
+		Data struct {
+			Security securityOptionsResponse `json:"security"`
+		} `json:"data"`
 	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return defaultSecurityOptions()
+	}
+	opts := envelope.Data.Security.Options
 	return &models.SecurityOptionsResourceModel{
-		Tokens:      types.BoolValue(api.Tokens),
-		Referrers:   types.BoolValue(api.Referrers),
-		JWTs:        types.BoolValue(api.JWTs),
-		IPs:         types.BoolValue(api.IPs),
-		DomainMasks: types.BoolValue(api.DomainMasks),
-		HSTS:        types.BoolValue(api.HSTS),
-		CORS:        types.BoolValue(api.CORS),
+		Tokens:      types.BoolPointerValue(opts.Tokens),
+		Referrers:   types.BoolPointerValue(opts.Referrers),
+		JWTs:        types.BoolPointerValue(opts.JWTs),
+		IPs:         types.BoolPointerValue(opts.IPs),
+		DomainMasks: types.BoolPointerValue(opts.DomainMasks),
+		HSTS:        types.BoolPointerValue(opts.HSTS),
+		CORS:        types.BoolPointerValue(opts.CORS),
 	}
 }
 
-// buildSecurityOptionsMap builds a map from the Terraform resource model for the API call.
-func buildSecurityOptionsMap(tf *models.SecurityOptionsResourceModel) map[string]string {
+func defaultSecurityOptions() *models.SecurityOptionsResourceModel {
+	return &models.SecurityOptionsResourceModel{
+		Tokens:      types.BoolValue(true),
+		Referrers:   types.BoolValue(false),
+		JWTs:        types.BoolValue(false),
+		IPs:         types.BoolValue(false),
+		DomainMasks: types.BoolValue(false),
+		HSTS:        types.BoolValue(false),
+		CORS:        types.BoolValue(true),
+	}
+}
+
+// buildSecurityOptionsBody builds the request body for updating security options.
+func buildSecurityOptionsBody(tf *models.SecurityOptionsResourceModel) api.UpdateSecurityOptionsJSONRequestBody {
 	if tf == nil {
-		return map[string]string{
-			"tokens":      "enabled",
-			"referrers":   "disabled",
-			"jwts":        "disabled",
-			"ips":         "disabled",
-			"domainMasks": "disabled",
-			"hsts":        "disabled",
-			"cors":        "enabled",
+		tokens := api.UpdateSecurityOptionsJSONBodyOptionsTokens("enabled")
+		referrers := api.UpdateSecurityOptionsJSONBodyOptionsReferrers("disabled")
+		jwts := api.UpdateSecurityOptionsJSONBodyOptionsJwts("disabled")
+		ips := api.UpdateSecurityOptionsJSONBodyOptionsIps("disabled")
+		domainMasks := api.UpdateSecurityOptionsJSONBodyOptionsDomainMasks("disabled")
+		hsts := api.UpdateSecurityOptionsJSONBodyOptionsHsts("disabled")
+		cors := api.UpdateSecurityOptionsJSONBodyOptionsCors("enabled")
+		return api.UpdateSecurityOptionsJSONRequestBody{
+			Options: struct {
+				Cors           *api.UpdateSecurityOptionsJSONBodyOptionsCors           `json:"cors,omitempty"`
+				DomainMasks    *api.UpdateSecurityOptionsJSONBodyOptionsDomainMasks    `json:"domainMasks,omitempty"`
+				Hsts           *api.UpdateSecurityOptionsJSONBodyOptionsHsts           `json:"hsts,omitempty"`
+				IpCustomHeader *api.UpdateSecurityOptionsJSONBodyOptionsIpCustomHeader `json:"ipCustomHeader,omitempty"`
+				Ips            *api.UpdateSecurityOptionsJSONBodyOptionsIps            `json:"ips,omitempty"`
+				Jwts           *api.UpdateSecurityOptionsJSONBodyOptionsJwts           `json:"jwts,omitempty"`
+				Referrers      *api.UpdateSecurityOptionsJSONBodyOptionsReferrers      `json:"referrers,omitempty"`
+				RequestFilters *api.UpdateSecurityOptionsJSONBodyOptionsRequestFilters `json:"requestFilters,omitempty"`
+				Tokens         *api.UpdateSecurityOptionsJSONBodyOptionsTokens         `json:"tokens,omitempty"`
+			}{
+				Tokens:      &tokens,
+				Referrers:   &referrers,
+				Jwts:        &jwts,
+				Ips:         &ips,
+				DomainMasks: &domainMasks,
+				Hsts:        &hsts,
+				Cors:        &cors,
+			},
 		}
 	}
-	return map[string]string{
-		"tokens":      securityString(tf.Tokens.ValueBool()),
-		"referrers":   securityString(tf.Referrers.ValueBool()),
-		"jwts":        securityString(tf.JWTs.ValueBool()),
-		"ips":         securityString(tf.IPs.ValueBool()),
-		"domainMasks": securityString(tf.DomainMasks.ValueBool()),
-		"hsts":        securityString(tf.HSTS.ValueBool()),
-		"cors":        securityString(tf.CORS.ValueBool()),
+
+	tokens := securityString(tf.Tokens.ValueBool())
+	referrers := api.UpdateSecurityOptionsJSONBodyOptionsReferrers(securityString(tf.Referrers.ValueBool()))
+	jwts := api.UpdateSecurityOptionsJSONBodyOptionsJwts(securityString(tf.JWTs.ValueBool()))
+	ips := api.UpdateSecurityOptionsJSONBodyOptionsIps(securityString(tf.IPs.ValueBool()))
+	domainMasks := api.UpdateSecurityOptionsJSONBodyOptionsDomainMasks(securityString(tf.DomainMasks.ValueBool()))
+	hsts := api.UpdateSecurityOptionsJSONBodyOptionsHsts(securityString(tf.HSTS.ValueBool()))
+	cors := api.UpdateSecurityOptionsJSONBodyOptionsCors(securityString(tf.CORS.ValueBool()))
+	return api.UpdateSecurityOptionsJSONRequestBody{
+		Options: struct {
+			Cors           *api.UpdateSecurityOptionsJSONBodyOptionsCors           `json:"cors,omitempty"`
+			DomainMasks    *api.UpdateSecurityOptionsJSONBodyOptionsDomainMasks    `json:"domainMasks,omitempty"`
+			Hsts           *api.UpdateSecurityOptionsJSONBodyOptionsHsts           `json:"hsts,omitempty"`
+			IpCustomHeader *api.UpdateSecurityOptionsJSONBodyOptionsIpCustomHeader `json:"ipCustomHeader,omitempty"`
+			Ips            *api.UpdateSecurityOptionsJSONBodyOptionsIps            `json:"ips,omitempty"`
+			Jwts           *api.UpdateSecurityOptionsJSONBodyOptionsJwts           `json:"jwts,omitempty"`
+			Referrers      *api.UpdateSecurityOptionsJSONBodyOptionsReferrers      `json:"referrers,omitempty"`
+			RequestFilters *api.UpdateSecurityOptionsJSONBodyOptionsRequestFilters `json:"requestFilters,omitempty"`
+			Tokens         *api.UpdateSecurityOptionsJSONBodyOptionsTokens         `json:"tokens,omitempty"`
+		}{
+			Tokens:      &tokens,
+			Referrers:   &referrers,
+			Jwts:        &jwts,
+			Ips:         &ips,
+			DomainMasks: &domainMasks,
+			Hsts:        &hsts,
+			Cors:        &cors,
+		},
 	}
+}
+
+// mapSingleEndpointToState maps a SingleEndpoint from the API to the Terraform resource model.
+func mapSingleEndpointToState(endpoint *api.SingleEndpoint, body []byte) models.EndpointResourceModel {
+	label := ""
+	if endpoint.Label != nil {
+		label = *endpoint.Label
+	}
+	wssURL := ""
+	if endpoint.WssUrl != nil {
+		wssURL = *endpoint.WssUrl
+	}
+	status := ""
+	if endpoint.Status != nil {
+		status = *endpoint.Status
+	}
+	multichain := false
+	if endpoint.Multichain != nil {
+		multichain = *endpoint.Multichain
+	}
+
+	state := models.EndpointResourceModel{
+		ID:              types.StringValue(endpoint.Id),
+		Label:           types.StringValue(label),
+		Chain:           types.StringValue(endpoint.Chain),
+		Network:         types.StringValue(endpoint.Network),
+		HTTPURL:         types.StringValue(endpoint.HttpUrl),
+		WSSURL:          types.StringValue(wssURL),
+		SecurityOptions: parseSecurityOptions(body),
+		Status:          types.StringValue(status),
+		Multichain:      types.BoolValue(multichain),
+	}
+	return state
 }
 
 // Create a new resource.
 func (r *endpointResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	// Retrieve values from plan
+	// Retrieve values from plan.
 	var plan models.EndpointResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -218,8 +318,14 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	// Create new order
-	endpoint, err := r.client.CreateEndpoint(ctx, plan)
+	chain := plan.Chain.ValueString()
+	network := plan.Network.ValueString()
+
+	// Create new endpoint.
+	createResp, err := r.client.API.CreateEndpointWithResponse(ctx, api.CreateEndpointJSONRequestBody{
+		Chain:   &chain,
+		Network: &network,
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating endpoint",
@@ -227,18 +333,33 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 		)
 		return
 	}
-	// Map response body to schema and populate Computed attribute values
-	plan.ID = types.StringValue(endpoint.ID)
+	if createResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error creating endpoint",
+			fmt.Sprintf("API returned status %d: %s", createResp.StatusCode(), string(createResp.Body)),
+		)
+		return
+	}
+
+	endpoint := createResp.JSON200.Data
+	plan.ID = types.StringValue(endpoint.Id)
 	plan.Chain = types.StringValue(endpoint.Chain)
 	plan.Network = types.StringValue(endpoint.Network)
-	plan.HTTPURL = types.StringValue(endpoint.HTTPURL)
-	plan.WSSURL = types.StringValue(endpoint.WSSURL)
-	plan.Status = types.StringValue(endpoint.Status)
-	plan.Multichain = types.BoolValue(endpoint.Multichain)
+	plan.HTTPURL = types.StringValue(endpoint.HttpUrl)
+	if endpoint.WssUrl != nil {
+		plan.WSSURL = types.StringValue(*endpoint.WssUrl)
+	}
+	if endpoint.Status != nil {
+		plan.Status = types.StringValue(*endpoint.Status)
+	}
+	plan.Multichain = types.BoolValue(*endpoint.Multichain)
 
-	// Patch endpoint label if needed
+	// Patch endpoint label if needed.
 	if plan.Label.ValueString() != "" {
-		err = r.client.PatchEndpoint(ctx, plan)
+		label := plan.Label.ValueString()
+		updateResp, err := r.client.API.UpdateEndpointWithResponse(ctx, endpoint.Id, api.UpdateEndpointJSONRequestBody{
+			Label: &label,
+		})
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error patching endpoint label",
@@ -246,14 +367,20 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 			)
 			return
 		}
-		// Keep the label from plan since we just patched it
-	} else {
-		// Use label from API response if plan didn't have one
-		plan.Label = types.StringValue(endpoint.Label)
+		if updateResp.StatusCode() != http.StatusOK {
+			resp.Diagnostics.AddError(
+				"Error patching endpoint label",
+				fmt.Sprintf("API returned status %d: %s", updateResp.StatusCode(), string(updateResp.Body)),
+			)
+			return
+		}
+	} else if endpoint.Label != nil {
+		plan.Label = types.StringValue(*endpoint.Label)
 	}
 
-	// Patch security options
-	err = r.client.PatchEndpointSecurity(ctx, plan.ID.ValueString(), buildSecurityOptionsMap(plan.SecurityOptions))
+	// Patch security options.
+	secBody := buildSecurityOptionsBody(plan.SecurityOptions)
+	secResp, err := r.client.API.UpdateSecurityOptionsWithResponse(ctx, plan.ID.ValueString(), secBody)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error patching endpoint security options",
@@ -261,9 +388,16 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 		)
 		return
 	}
+	if secResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error patching endpoint security options",
+			fmt.Sprintf("API returned status %d: %s", secResp.StatusCode(), string(secResp.Body)),
+		)
+		return
+	}
 
-	// Read back the full state including security options
-	endpoint, err = r.client.GetEndpoint(ctx, plan.ID.ValueString())
+	// Read back the full state including security options.
+	showResp, err := r.client.API.ShowEndpointWithResponse(ctx, plan.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading QuickNode Endpoint",
@@ -271,9 +405,16 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 		)
 		return
 	}
-	plan.SecurityOptions = mapSecurityOptions(&endpoint.Security.Options)
+	if showResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error Reading QuickNode Endpoint",
+			fmt.Sprintf("API returned status %d: %s", showResp.StatusCode(), string(showResp.Body)),
+		)
+		return
+	}
+	plan.SecurityOptions = parseSecurityOptions(showResp.Body)
 
-	// Set state to fully populated data
+	// Set state to fully populated data.
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -283,7 +424,7 @@ func (r *endpointResource) Create(ctx context.Context, req resource.CreateReques
 
 // Read refreshes the Terraform state with the latest data.
 func (r *endpointResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	// Get current state
+	// Get current state.
 	var state models.EndpointResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -291,8 +432,8 @@ func (r *endpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	// Get refreshed endpoint value from QuickNode
-	endpoint, err := r.client.GetEndpoint(ctx, state.ID.ValueString())
+	// Get refreshed endpoint value from QuickNode.
+	showResp, err := r.client.API.ShowEndpointWithResponse(ctx, state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading QuickNode Endpoint",
@@ -300,19 +441,18 @@ func (r *endpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 		)
 		return
 	}
+	if showResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error Reading QuickNode Endpoint",
+			fmt.Sprintf("API returned status %d: %s", showResp.StatusCode(), string(showResp.Body)),
+		)
+		return
+	}
 
-	// Overwrite endpoint with refreshed state
-	state.ID = types.StringValue(endpoint.ID)
-	state.Label = types.StringValue(endpoint.Label)
-	state.Chain = types.StringValue(endpoint.Chain)
-	state.Network = types.StringValue(endpoint.Network)
-	state.HTTPURL = types.StringValue(endpoint.HTTPURL)
-	state.WSSURL = types.StringValue(endpoint.WSSURL)
-	state.SecurityOptions = mapSecurityOptions(&endpoint.Security.Options)
-	state.Status = types.StringValue(endpoint.Status)
-	state.Multichain = types.BoolValue(endpoint.Multichain)
+	endpoint := showResp.JSON200.Data
+	state = mapSingleEndpointToState(endpoint, showResp.Body)
 
-	// Set refreshed state
+	// Set refreshed state.
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -322,7 +462,7 @@ func (r *endpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *endpointResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	// Retrieve values from plan
+	// Retrieve values from plan.
 	var plan models.EndpointResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -330,8 +470,11 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	// Patch endpoint label
-	err := r.client.PatchEndpoint(ctx, plan)
+	// Patch endpoint label.
+	label := plan.Label.ValueString()
+	updateResp, err := r.client.API.UpdateEndpointWithResponse(ctx, plan.ID.ValueString(), api.UpdateEndpointJSONRequestBody{
+		Label: &label,
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating QuickNode Endpoint",
@@ -339,9 +482,17 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 		)
 		return
 	}
+	if updateResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error Updating QuickNode Endpoint",
+			fmt.Sprintf("API returned status %d: %s", updateResp.StatusCode(), string(updateResp.Body)),
+		)
+		return
+	}
 
-	// Patch security options
-	err = r.client.PatchEndpointSecurity(ctx, plan.ID.ValueString(), buildSecurityOptionsMap(plan.SecurityOptions))
+	// Patch security options.
+	secBody := buildSecurityOptionsBody(plan.SecurityOptions)
+	secResp, err := r.client.API.UpdateSecurityOptionsWithResponse(ctx, plan.ID.ValueString(), secBody)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error patching endpoint security options",
@@ -349,9 +500,16 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 		)
 		return
 	}
+	if secResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error patching endpoint security options",
+			fmt.Sprintf("API returned status %d: %s", secResp.StatusCode(), string(secResp.Body)),
+		)
+		return
+	}
 
-	// Read back the endpoint to get the full updated state
-	endpoint, err := r.client.GetEndpoint(ctx, plan.ID.ValueString())
+	// Read back the endpoint to get the full updated state.
+	showResp, err := r.client.API.ShowEndpointWithResponse(ctx, plan.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading QuickNode Endpoint",
@@ -359,17 +517,16 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 		)
 		return
 	}
+	if showResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error Reading QuickNode Endpoint",
+			fmt.Sprintf("API returned status %d: %s", showResp.StatusCode(), string(showResp.Body)),
+		)
+		return
+	}
 
-	// Map response to state
-	plan.ID = types.StringValue(endpoint.ID)
-	plan.Label = types.StringValue(endpoint.Label)
-	plan.Chain = types.StringValue(endpoint.Chain)
-	plan.Network = types.StringValue(endpoint.Network)
-	plan.HTTPURL = types.StringValue(endpoint.HTTPURL)
-	plan.WSSURL = types.StringValue(endpoint.WSSURL)
-	plan.SecurityOptions = mapSecurityOptions(&endpoint.Security.Options)
-	plan.Status = types.StringValue(endpoint.Status)
-	plan.Multichain = types.BoolValue(endpoint.Multichain)
+	endpoint := showResp.JSON200.Data
+	plan = mapSingleEndpointToState(endpoint, showResp.Body)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -377,7 +534,7 @@ func (r *endpointResource) Update(ctx context.Context, req resource.UpdateReques
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (r *endpointResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	// Retrieve values from state
+	// Retrieve values from state.
 	var state models.EndpointResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -385,12 +542,19 @@ func (r *endpointResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	// Delete existing order
-	err := r.client.DeleteEndpoint(ctx, state)
+	// Delete existing endpoint.
+	deleteResp, err := r.client.API.ArchiveEndpointWithResponse(ctx, state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting QuickNode Endpoint",
 			"Could not delete endpoint, unexpected error: "+err.Error(),
+		)
+		return
+	}
+	if deleteResp.StatusCode() != http.StatusOK {
+		resp.Diagnostics.AddError(
+			"Error Deleting QuickNode Endpoint",
+			fmt.Sprintf("API returned status %d: %s", deleteResp.StatusCode(), string(deleteResp.Body)),
 		)
 		return
 	}
@@ -420,6 +584,6 @@ func (r *endpointResource) Configure(_ context.Context, req resource.ConfigureRe
 
 // ImportState imports the state of the resource into the Terraform state.
 func (r *endpointResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Retrieve import ID and save to id attribute
+	// Retrieve import ID and save to id attribute.
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
