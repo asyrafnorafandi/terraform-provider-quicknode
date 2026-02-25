@@ -27,6 +27,8 @@ resource "quicknode_endpoint" "example" {
     hsts         = false
     cors         = true
   }
+
+  tags = ["env:staging", "chain:optimism"]
 }
 
 output "endpoint" {
@@ -46,6 +48,7 @@ output "endpoint" {
 
 - `label` (String) A descriptive label for the endpoint.
 - `security_options` (Attributes) Security options for the endpoint. (see [below for nested schema](#nestedatt--security_options))
+- `tags` (List of String) Labels (tags) associated with the endpoint.
 
 ### Read-Only
 

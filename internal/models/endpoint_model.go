@@ -22,8 +22,8 @@ type EndpointResourceModel struct {
 	WSSURL          types.String                  `tfsdk:"wss_url"`
 	SecurityOptions *SecurityOptionsResourceModel `tfsdk:"security_options"`
 	Status          types.String                  `tfsdk:"status"`
-	// Tags            types.List                    `tfsdk:"tags"`
-	Multichain types.Bool `tfsdk:"multichain"`
+	Tags            types.List                    `tfsdk:"tags"` // element type: types.StringType
+	Multichain      types.Bool                    `tfsdk:"multichain"`
 }
 
 type EndpointsDataSourceModel struct {

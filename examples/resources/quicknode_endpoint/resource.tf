@@ -12,6 +12,8 @@ resource "quicknode_endpoint" "example" {
     hsts         = false
     cors         = true
   }
+
+  tags = ["env:staging", "chain:optimism"]
 }
 
 output "endpoint" {
