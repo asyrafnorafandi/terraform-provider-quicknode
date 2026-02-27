@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/hashicorp/copywrite v0.25.0
 	github.com/hashicorp/terraform-plugin-docs v0.24.0
-	github.com/oapi-codegen/oapi-codegen/v2 v2.5.1
+	github.com/oapi-codegen/oapi-codegen/v2 v2.6.0
 )
 
 require (
