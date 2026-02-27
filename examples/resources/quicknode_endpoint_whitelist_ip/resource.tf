@@ -15,7 +15,7 @@ resource "quicknode_endpoint" "example" {
     tokens       = true
     referrers    = false
     jwts         = false
-    ips          = false
+    ips          = true # Must be set to true to use the whitelist_ip resource
     domain_masks = false
     hsts         = false
     cors         = true

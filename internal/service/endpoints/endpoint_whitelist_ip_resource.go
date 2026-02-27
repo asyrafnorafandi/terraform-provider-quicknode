@@ -47,10 +47,10 @@ func (r *endpointWhitelistIPResource) Metadata(_ context.Context, req resource.M
 // Schema defines the schema for the resource.
 func (r *endpointWhitelistIPResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Creates a new endpoint in the QuickNode API.",
+		Description: "Creates a new endpoint whitelist IP in the QuickNode API.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description: "A unique identifier for the created endpoint.",
+				Description: "A unique identifier for the created endpoint whitelist IP.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
