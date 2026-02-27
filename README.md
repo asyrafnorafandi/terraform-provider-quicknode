@@ -42,12 +42,24 @@ provider "quicknode" {
 }
 
 resource "quicknode_endpoint" "example" {
-  chain   = "hedera"
-  network = "hedera-testnet"
-  label   = "test-chain"
+  chain   = "optimism"
+  network = "optimism-sepolia"
+  label   = "optimisim-sepolia-test-chain"
+
+  security_options = {
+    tokens       = true
+    referrers    = false
+    jwts         = false
+    ips          = false
+    domain_masks = false
+    hsts         = false
+    cors         = true
+  }
+
+  tags = ["env:staging", "chain:optimism"]
 }
 
-output "supported_chains" {
+output "optimism_chain" {
   value = quicknode_endpoint.example
 }
 ```

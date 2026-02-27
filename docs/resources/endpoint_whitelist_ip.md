@@ -3,12 +3,12 @@
 page_title: "quicknode_endpoint_whitelist_ip Resource - quicknode"
 subcategory: ""
 description: |-
-  Creates a new endpoint in the QuickNode API.
+  Creates a new endpoint whitelist IP in the QuickNode API.
 ---
 
 # quicknode_endpoint_whitelist_ip (Resource)
 
-Creates a new endpoint in the QuickNode API.
+Creates a new endpoint whitelist IP in the QuickNode API.
 
 ## Example Usage
 
@@ -30,7 +30,7 @@ resource "quicknode_endpoint" "example" {
     tokens       = true
     referrers    = false
     jwts         = false
-    ips          = false
+    ips          = true # Must be set to true to use the whitelist_ip resource
     domain_masks = false
     hsts         = false
     cors         = true
@@ -54,7 +54,7 @@ resource "quicknode_endpoint_whitelist_ip" "example" {
 
 ### Read-Only
 
-- `id` (String) A unique identifier for the created endpoint.
+- `id` (String) A unique identifier for the created endpoint whitelist IP.
 
 ## Import
 
