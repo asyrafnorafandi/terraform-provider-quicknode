@@ -140,6 +140,12 @@ func (r *endpointResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 						Computed:    true,
 						Default:     booldefault.StaticBool(true),
 					},
+					"request_filters": schema.BoolAttribute{
+						Description: "Request filter-based access control for the endpoint. (default: false)",
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+					},
 				},
 			},
 			"status": schema.StringAttribute{
@@ -178,13 +184,14 @@ func securityString(val bool) api.UpdateSecurityOptionsJSONBodyOptionsTokens {
 // because the OpenAPI spec doesn't include hsts/cors in the response schema.
 type securityOptionsResponse struct {
 	Options struct {
-		Tokens      *bool `json:"tokens"`
-		Referrers   *bool `json:"referrers"`
-		JWTs        *bool `json:"jwts"`
-		IPs         *bool `json:"ips"`
-		DomainMasks *bool `json:"domainMasks"`
-		HSTS        *bool `json:"hsts"`
-		CORS        *bool `json:"cors"`
+		Tokens         *bool `json:"tokens"`
+		Referrers      *bool `json:"referrers"`
+		JWTs           *bool `json:"jwts"`
+		IPs            *bool `json:"ips"`
+		DomainMasks    *bool `json:"domainMasks"`
+		HSTS           *bool `json:"hsts"`
+		CORS           *bool `json:"cors"`
+		RequestFilters *bool `json:"requestFilters"`
 	} `json:"options"`
 }
 
@@ -201,25 +208,27 @@ func parseSecurityOptions(body []byte) *models.SecurityOptionsResourceModel {
 	}
 	opts := envelope.Data.Security.Options
 	return &models.SecurityOptionsResourceModel{
-		Tokens:      types.BoolPointerValue(opts.Tokens),
-		Referrers:   types.BoolPointerValue(opts.Referrers),
-		JWTs:        types.BoolPointerValue(opts.JWTs),
-		IPs:         types.BoolPointerValue(opts.IPs),
-		DomainMasks: types.BoolPointerValue(opts.DomainMasks),
-		HSTS:        types.BoolPointerValue(opts.HSTS),
-		CORS:        types.BoolPointerValue(opts.CORS),
+		Tokens:         types.BoolPointerValue(opts.Tokens),
+		Referrers:      types.BoolPointerValue(opts.Referrers),
+		JWTs:           types.BoolPointerValue(opts.JWTs),
+		IPs:            types.BoolPointerValue(opts.IPs),
+		DomainMasks:    types.BoolPointerValue(opts.DomainMasks),
+		HSTS:           types.BoolPointerValue(opts.HSTS),
+		CORS:           types.BoolPointerValue(opts.CORS),
+		RequestFilters: types.BoolPointerValue(opts.RequestFilters),
 	}
 }
 
 func defaultSecurityOptions() *models.SecurityOptionsResourceModel {
 	return &models.SecurityOptionsResourceModel{
-		Tokens:      types.BoolValue(true),
-		Referrers:   types.BoolValue(false),
-		JWTs:        types.BoolValue(false),
-		IPs:         types.BoolValue(false),
-		DomainMasks: types.BoolValue(false),
-		HSTS:        types.BoolValue(false),
-		CORS:        types.BoolValue(true),
+		Tokens:         types.BoolValue(true),
+		Referrers:      types.BoolValue(false),
+		JWTs:           types.BoolValue(false),
+		IPs:            types.BoolValue(false),
+		DomainMasks:    types.BoolValue(false),
+		HSTS:           types.BoolValue(false),
+		CORS:           types.BoolValue(true),
+		RequestFilters: types.BoolValue(false),
 	}
 }
 
@@ -317,6 +326,7 @@ func buildSecurityOptionsBody(tf *models.SecurityOptionsResourceModel) api.Updat
 		domainMasks := api.UpdateSecurityOptionsJSONBodyOptionsDomainMasks("disabled")
 		hsts := api.UpdateSecurityOptionsJSONBodyOptionsHsts("disabled")
 		cors := api.UpdateSecurityOptionsJSONBodyOptionsCors("enabled")
+		requestFilters := api.UpdateSecurityOptionsJSONBodyOptionsRequestFilters("disabled")
 		return api.UpdateSecurityOptionsJSONRequestBody{
 			Options: struct {
 				Cors           *api.UpdateSecurityOptionsJSONBodyOptionsCors           `json:"cors,omitempty"`
@@ -329,13 +339,14 @@ func buildSecurityOptionsBody(tf *models.SecurityOptionsResourceModel) api.Updat
 				RequestFilters *api.UpdateSecurityOptionsJSONBodyOptionsRequestFilters `json:"requestFilters,omitempty"`
 				Tokens         *api.UpdateSecurityOptionsJSONBodyOptionsTokens         `json:"tokens,omitempty"`
 			}{
-				Tokens:      &tokens,
-				Referrers:   &referrers,
-				Jwts:        &jwts,
-				Ips:         &ips,
-				DomainMasks: &domainMasks,
-				Hsts:        &hsts,
-				Cors:        &cors,
+				Tokens:         &tokens,
+				Referrers:      &referrers,
+				Jwts:           &jwts,
+				Ips:            &ips,
+				DomainMasks:    &domainMasks,
+				Hsts:           &hsts,
+				Cors:           &cors,
+				RequestFilters: &requestFilters,
 			},
 		}
 	}
@@ -347,6 +358,7 @@ func buildSecurityOptionsBody(tf *models.SecurityOptionsResourceModel) api.Updat
 	domainMasks := api.UpdateSecurityOptionsJSONBodyOptionsDomainMasks(securityString(tf.DomainMasks.ValueBool()))
 	hsts := api.UpdateSecurityOptionsJSONBodyOptionsHsts(securityString(tf.HSTS.ValueBool()))
 	cors := api.UpdateSecurityOptionsJSONBodyOptionsCors(securityString(tf.CORS.ValueBool()))
+	requestFilters := api.UpdateSecurityOptionsJSONBodyOptionsRequestFilters(securityString(tf.RequestFilters.ValueBool()))
 	return api.UpdateSecurityOptionsJSONRequestBody{
 		Options: struct {
 			Cors           *api.UpdateSecurityOptionsJSONBodyOptionsCors           `json:"cors,omitempty"`
@@ -359,13 +371,14 @@ func buildSecurityOptionsBody(tf *models.SecurityOptionsResourceModel) api.Updat
 			RequestFilters *api.UpdateSecurityOptionsJSONBodyOptionsRequestFilters `json:"requestFilters,omitempty"`
 			Tokens         *api.UpdateSecurityOptionsJSONBodyOptionsTokens         `json:"tokens,omitempty"`
 		}{
-			Tokens:      &tokens,
-			Referrers:   &referrers,
-			Jwts:        &jwts,
-			Ips:         &ips,
-			DomainMasks: &domainMasks,
-			Hsts:        &hsts,
-			Cors:        &cors,
+			Tokens:         &tokens,
+			Referrers:      &referrers,
+			Jwts:           &jwts,
+			Ips:            &ips,
+			DomainMasks:    &domainMasks,
+			Hsts:           &hsts,
+			Cors:           &cors,
+			RequestFilters: &requestFilters,
 		},
 	}
 }

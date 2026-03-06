@@ -22,10 +22,6 @@ var TestAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 func TestAccPreCheck(t *testing.T) {
 	t.Helper()
 
-	if v := os.Getenv("QUICKNODE_ENDPOINT"); v == "" {
-		t.Fatal("QUICKNODE_ENDPOINT must be set for acceptance tests")
-	}
-
 	if v := os.Getenv("QUICKNODE_API_KEY"); v == "" {
 		t.Fatal("QUICKNODE_API_KEY must be set for acceptance tests")
 	}

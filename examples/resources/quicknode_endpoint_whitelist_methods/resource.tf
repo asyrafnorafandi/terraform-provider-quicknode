@@ -11,12 +11,11 @@ resource "quicknode_endpoint" "example" {
     domain_masks    = false
     hsts            = false
     cors            = true
-    request_filters = false
+    request_filters = true # Must be set to true to use the whitelist_methods resource
   }
-
-  tags = ["env:staging", "chain:optimism"]
 }
 
-output "endpoint" {
-  value = quicknode_endpoint.example
+resource "quicknode_endpoint_whitelist_methods" "example" {
+  method      = ["eth_blockNumber", "eth_getBalance"]
+  endpoint_id = quicknode_endpoint.example.id
 }

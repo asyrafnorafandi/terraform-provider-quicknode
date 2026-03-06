@@ -19,13 +19,14 @@ resource "quicknode_endpoint" "example" {
   label   = "test-chain"
 
   security_options = {
-    tokens       = true
-    referrers    = false
-    jwts         = false
-    ips          = false
-    domain_masks = false
-    hsts         = false
-    cors         = true
+    tokens          = true
+    referrers       = false
+    jwts            = false
+    ips             = false
+    domain_masks    = false
+    hsts            = false
+    cors            = true
+    request_filters = false
   }
 
   tags = ["env:staging", "chain:optimism"]
@@ -69,6 +70,7 @@ Optional:
 - `ips` (Boolean) IP-based access control for the endpoint. (default: false)
 - `jwts` (Boolean) JWT-based authentication for the endpoint. (default: false)
 - `referrers` (Boolean) Referrer-based access control for the endpoint. (default: false)
+- `request_filters` (Boolean) Request filter-based access control for the endpoint. (default: false)
 - `tokens` (Boolean) Token-based authentication for the endpoint. (default: true)
 
 ## Import
