@@ -47,16 +47,37 @@ resource "quicknode_endpoint" "example" {
   label   = "optimisim-sepolia-test-chain"
 
   security_options = {
-    tokens       = true
-    referrers    = false
-    jwts         = false
-    ips          = false
-    domain_masks = false
-    hsts         = false
-    cors         = true
+    tokens          = true
+    referrers       = false
+    jwts            = false
+    ips             = true
+    domain_masks    = false
+    hsts            = false
+    cors            = true
+    request_filters = true
   }
 
   tags = ["env:staging", "chain:optimism"]
+}
+
+# Whitelist specific IPs for the endpoint
+locals {
+  whitelisted_ips = [
+    "10.20.10.0/24",
+    "10.20.11.0/24",
+  ]
+}
+
+resource "quicknode_endpoint_whitelist_ip" "example" {
+  for_each    = toset(local.whitelisted_ips)
+  ip          = each.value
+  endpoint_id = quicknode_endpoint.example.id
+}
+
+# Whitelist specific RPC methods for the endpoint
+resource "quicknode_endpoint_whitelist_methods" "example" {
+  method      = ["eth_blockNumber", "eth_getBalance", "eth_chainId"]
+  endpoint_id = quicknode_endpoint.example.id
 }
 
 output "optimism_chain" {
@@ -89,6 +110,7 @@ export QUICKNODE_ENDPOINT="https://api.quicknode.com"
 
 - `quicknode_endpoint` - Creates and manages a QuickNode RPC endpoint.
 - `quicknode_endpoint_whitelist_ip` - Manages IP whitelist entries for an endpoint.
+- `quicknode_endpoint_whitelist_methods` - Manages RPC method whitelist (request filters) for an endpoint.
 
 ## Data Sources
 

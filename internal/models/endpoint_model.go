@@ -4,13 +4,14 @@ import "github.com/hashicorp/terraform-plugin-framework/types"
 
 // Terraform Models.
 type SecurityOptionsResourceModel struct {
-	Tokens      types.Bool `tfsdk:"tokens"`
-	Referrers   types.Bool `tfsdk:"referrers"`
-	JWTs        types.Bool `tfsdk:"jwts"`
-	IPs         types.Bool `tfsdk:"ips"`
-	DomainMasks types.Bool `tfsdk:"domain_masks"`
-	HSTS        types.Bool `tfsdk:"hsts"`
-	CORS        types.Bool `tfsdk:"cors"`
+	Tokens         types.Bool `tfsdk:"tokens"`
+	Referrers      types.Bool `tfsdk:"referrers"`
+	JWTs           types.Bool `tfsdk:"jwts"`
+	IPs            types.Bool `tfsdk:"ips"`
+	DomainMasks    types.Bool `tfsdk:"domain_masks"`
+	HSTS           types.Bool `tfsdk:"hsts"`
+	CORS           types.Bool `tfsdk:"cors"`
+	RequestFilters types.Bool `tfsdk:"request_filters"`
 }
 
 type EndpointResourceModel struct {
@@ -42,5 +43,11 @@ type EndpointsDataSourceModel struct {
 type EndpointWhitelistIPResourceModel struct {
 	ID         types.String `tfsdk:"id"`
 	IP         types.String `tfsdk:"ip"`
+	EndpointID types.String `tfsdk:"endpoint_id"`
+}
+
+type EndpointWhitelistMethodsResourceModel struct {
+	ID         types.String `tfsdk:"id"`
+	Method     types.Set    `tfsdk:"method"` // element type: types.StringType
 	EndpointID types.String `tfsdk:"endpoint_id"`
 }
