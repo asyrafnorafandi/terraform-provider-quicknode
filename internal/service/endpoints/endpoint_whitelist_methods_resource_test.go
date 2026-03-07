@@ -4,11 +4,13 @@
 package endpoints_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/asyrafnorafandi/terraform-provider-quicknode/internal/provider"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccEndpointWhitelistMethodResource(t *testing.T) {
@@ -30,6 +32,13 @@ func TestAccEndpointWhitelistMethodResource(t *testing.T) {
 				ResourceName:      "quicknode_endpoint_whitelist_methods.test",
 				ImportState:       true,
 				ImportStateVerify: true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					rs, ok := s.RootModule().Resources["quicknode_endpoint_whitelist_methods.test"]
+					if !ok {
+						return "", fmt.Errorf("resource not found")
+					}
+					return rs.Primary.Attributes["endpoint_id"] + "/" + rs.Primary.Attributes["id"], nil
+				},
 			},
 			// Update testing.
 			{
