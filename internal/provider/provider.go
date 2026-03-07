@@ -178,5 +178,6 @@ func (p *quicknodeProvider) Resources(_ context.Context) []func() resource.Resou
 		endpoints.NewEndpointResource,
 		endpoints.NewEndpointWhitelistIPResource,
 		endpoints.NewEndpointWhitelistMethodsResource,
+		endpoints.NewEndpointWhitelistDomainMaskResource,
 	}
 }

@@ -46,6 +46,12 @@ type EndpointWhitelistIPResourceModel struct {
 	EndpointID types.String `tfsdk:"endpoint_id"`
 }
 
+type EndpointWhitelistDomainMaskResourceModel struct {
+	ID         types.String `tfsdk:"id"`
+	DomainMask types.String `tfsdk:"domain_mask"`
+	EndpointID types.String `tfsdk:"endpoint_id"`
+}
+
 type EndpointWhitelistMethodsResourceModel struct {
 	ID         types.String `tfsdk:"id"`
 	Method     types.Set    `tfsdk:"method"` // element type: types.StringType
