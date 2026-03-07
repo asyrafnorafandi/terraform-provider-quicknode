@@ -51,7 +51,7 @@ resource "quicknode_endpoint" "example" {
     referrers       = false
     jwts            = false
     ips             = true
-    domain_masks    = false
+    domain_masks    = true
     hsts            = false
     cors            = true
     request_filters = true
@@ -71,6 +71,20 @@ locals {
 resource "quicknode_endpoint_whitelist_ip" "example" {
   for_each    = toset(local.whitelisted_ips)
   ip          = each.value
+  endpoint_id = quicknode_endpoint.example.id
+}
+
+# Whitelist specific domain masks for the endpoint
+locals {
+  whitelisted_domains = [
+    "rpc.example.com",
+    "rpc.op-sepolia.example.com",
+  ]
+}
+
+resource "quicknode_endpoint_whitelist_domain_mask" "example" {
+  for_each    = toset(local.whitelisted_domains)
+  domain_mask = each.value
   endpoint_id = quicknode_endpoint.example.id
 }
 
@@ -110,6 +124,7 @@ export QUICKNODE_ENDPOINT="https://api.quicknode.com"
 
 - `quicknode_endpoint` - Creates and manages a QuickNode RPC endpoint.
 - `quicknode_endpoint_whitelist_ip` - Manages IP whitelist entries for an endpoint.
+- `quicknode_endpoint_whitelist_domain_mask` - Manages domain mask whitelist entries for an endpoint.
 - `quicknode_endpoint_whitelist_methods` - Manages RPC method whitelist (request filters) for an endpoint.
 
 ## Data Sources
